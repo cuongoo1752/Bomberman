@@ -41,7 +41,7 @@ public class BombermanGame extends Application {
     private Button buttonState;
 
 
-    private static int level = 5;
+    private static int level = 1;
 
     // Entity
     private static List<Entity> entities = new ArrayList<>();
@@ -171,6 +171,9 @@ public class BombermanGame extends Application {
                 }
                 else if(lineFile.charAt(i) == '1'){
                     entities.add(new Balloon(i , row , Sprite.balloom_left1.getFxImage()));
+                }
+                else if(lineFile.charAt(i) == '2'){
+                    entities.add(new Oneal(i , row , Sprite.oneal_left1.getFxImage()));
                 }
 
             }
@@ -351,6 +354,15 @@ public class BombermanGame extends Application {
             if (entity.compareLocation(x , y)
                     && !(entity instanceof Bomber))
                 return entity;
+        }
+        return null;
+    }
+
+    public static Entity getBomber(){
+        for (Entity entity : entities) {
+            if(entity instanceof Bomber){
+                return entity;
+            }
         }
         return null;
     }
