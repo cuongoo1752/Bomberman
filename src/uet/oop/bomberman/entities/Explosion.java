@@ -1,18 +1,21 @@
-package uet.oop.bomberman.entities.boom;
+package uet.oop.bomberman.entities;
 import javafx.scene.image.Image;
-import uet.oop.bomberman.entities.Entity;
 
 public class Explosion extends Entity {
-    private int time = 20;
+    private int timeDisappear = 32;
     public Explosion( int x , int y , Image img ) {
         super(x , y , img);
     }
 
+    /**
+     * Hàm cập nhật liên tục
+     */
     @Override
     public void update() {
-        if (time > 0) {
-            time--;
-        } else {
+        if (timeDisappear > 0) {
+            timeDisappear--;
+        }
+        else {
             this.remove();
         }
     }

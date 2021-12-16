@@ -4,69 +4,81 @@ import javafx.scene.image.Image;
 import uet.oop.bomberman.BombermanGame;
 import uet.oop.bomberman.graphics.Sprite;
 
-public class Bomber extends MovingEntity {
+public class Bomber extends MoveEntity {
 
     public Bomber(int x, int y, Image img) {
         super( x, y, img);
     }
+    private Dir dir = Dir.EMPTY;
     public static int SPEED_MOVING = Sprite.SCALED_SIZE;
-    
-    public Direction getDirection() {
-        return direction;
+
+
+    public void setDir(Dir dir) {
+        this.dir = dir;
     }
 
-    public void setDirection(Direction direction) {
-        this.direction = direction;
-    }
-
-    private Direction direction = Direction.EMPTY;
-
+    /**
+     * Hàm cập nhật liên tục
+     */
     @Override
     public void update() {
-        if(direction != Direction.EMPTY){
+        if(dir != Dir.EMPTY){
             moving();
         }
 
         checkAlive();
     }
 
+    /**
+     * Kiểm tra di chuyển được không
+     * @param x
+     * @param y
+     * @return true - di chuyển được, false - không di chuyển được
+     */
     public boolean checkMove(int x, int y){
         Entity entity = BombermanGame.getEntity(x , y);
         if (entity == null) return true;
-        return this.collide(entity);
+        return this.isAMoveEntity(entity);
     }
 
-    public void moving(){
-        
-        if (direction == Direction.RIGHT) {
-            if (checkMove(x + SPEED_MOVING , y)) {
-                x += SPEED_MOVING;
-                img = Sprite.player_right.getFxImage();
-            }
-        }else if (direction == Direction.UP) {
-            if (checkMove(x , y - SPEED_MOVING)) {
-                y -= SPEED_MOVING;
-                img = Sprite.player_up.getFxImage();
-            }
-        } else if (direction == Direction.DOWN) {
-            if (checkMove(x , y + SPEED_MOVING)) {
-                y += SPEED_MOVING;
-                img = Sprite.player_down.getFxImage();
-            }
-        }
-        else if (direction == Direction.LEFT) {
-            if (checkMove(x - SPEED_MOVING , y)) {
-                x -= SPEED_MOVING;
-                img = Sprite.player_left.getFxImage();
-            }
-        }
-        direction = Direction.EMPTY;
-    }
-
+    /**
+     * Nếu đã chạm phải quân địch -> thua game
+     */
     private void checkAlive() {
         Entity enemy = BombermanGame.getEnemy(x , y);
         if (enemy != null) {
             remove();
         }
     }
+
+    /**
+     * Di chuyển bomber theo các hướng
+     */
+    public void moving(){
+        if (dir == Dir.RIGHT) {
+            if (checkMove(x + SPEED_MOVING , y)) {
+                x += SPEED_MOVING;
+                image = Sprite.player_right.getFxImage();
+            }
+        }else if (dir == Dir.UP) {
+            if (checkMove(x , y - SPEED_MOVING)) {
+                y -= SPEED_MOVING;
+                image = Sprite.player_up.getFxImage();
+            }
+        } else if (dir == Dir.DOWN) {
+            if (checkMove(x , y + SPEED_MOVING)) {
+                y += SPEED_MOVING;
+                image = Sprite.player_down.getFxImage();
+            }
+        }
+        else if (dir == Dir.LEFT) {
+            if (checkMove(x - SPEED_MOVING , y)) {
+                x -= SPEED_MOVING;
+                image = Sprite.player_left.getFxImage();
+            }
+        }
+        dir = Dir.EMPTY;
+    }
+
+
 }

@@ -8,15 +8,14 @@ import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
-import javafx.scene.control.Label;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.Stage;
 import uet.oop.bomberman.entities.*;
-import uet.oop.bomberman.entities.boom.Bom;
-import uet.oop.bomberman.entities.enermy.Balloon;
-import uet.oop.bomberman.entities.enermy.Enermy;
+import uet.oop.bomberman.entities.Bomb;
+import uet.oop.bomberman.entities.Balloon;
+import uet.oop.bomberman.entities.Enemy;
 import uet.oop.bomberman.graphics.Sprite;
 
 import java.io.BufferedReader;
@@ -27,64 +26,53 @@ import java.util.List;
 
 public class BombermanGame extends Application {
 
+    // Số ô
     public static final int WIDTH = 31;
     public static final int HEIGHT = 13;
 
+    // Các đối tượng hiển thị
     private GraphicsContext gc;
     private Canvas canvas;
-    private static List<Entity> entities = new ArrayList<>();
-    private List<Entity> stillObjects = new ArrayList<>();
-    private static List<Entity> fixedEntities = new ArrayList<>();
-    private static List<Entity> explosions = new ArrayList<>();
 
-    private Label caption;
+    // Đối tượng game
+    private Bomber bomberman;
+    private static Bomb bomb;
+    private Portal portal;
     private Button buttonState;
 
-    private Bomber bomberman;
-    private static Bom bomb;
-    private Portal portal;
 
-    private int level = 5;
+    private static int level = 5;
 
+    // Entity
+    private static List<Entity> entities = new ArrayList<>();
+    private static List<Entity> staticEntities = new ArrayList<>();
+    private static List<Entity> explosions = new ArrayList<>();
 
     public static void main(String[] args) {
         Application.launch(BombermanGame.class);
     }
 
+    /**
+     * Hàm bắt đầu game
+     * @param stage
+     * @throws IOException
+     */
     @Override
     public void start(Stage stage) throws IOException {
-        // Tao Canvas
+        // Tao Canvas, đặt kích thước
         canvas = new Canvas(Sprite.SCALED_SIZE * WIDTH, Sprite.SCALED_SIZE * HEIGHT);
         canvas.setLayoutX(0);
         canvas.setLayoutY(40);
         gc = canvas.getGraphicsContext2D();
 
-        // Tạo laber, button
-        caption = new Label();
-        buttonState = new Button("Play Again");
-        buttonState.setPrefHeight(40);
-        buttonState.setPrefWidth(BombermanGame.WIDTH * Sprite.SCALED_SIZE);
-        buttonState.setDisable(true);
-        buttonState.setStyle("-fx-font: 16 arial;" + "-fx-focus-color: transparent;" + "-fx-faint-focus-color: transparent;"
-        + "-fx-font-weight: bold;" + "-fx-opacity: 1.0;");
-
-        buttonState.setOnMouseClicked(new EventHandler<MouseEvent>() {
-            @Override
-            public void handle( MouseEvent event ) {
-                try {
-                    createMap();
-                    buttonState.setDisable(true);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
+        // Tạo button
+        createButton();
 
         // Tao root container
         Group root = new Group();
-        root.getChildren().addAll(canvas, caption, buttonState);
+        root.getChildren().addAll(canvas, buttonState);
 
-        // Tao scene
+        // Tạo scene
         Scene scene = new Scene(root);
 
         // Them scene vao stage
@@ -104,88 +92,115 @@ public class BombermanGame extends Application {
             }
         };
 
+        // Nhận các nút bấm
         scene.setOnKeyPressed(
                 createEventGame()
         );
-
-
         timer.start();
 
         // Tạo map
         createMap();
-
-
     }
 
+    /**
+     * Tạo nút trạng thái và hiệu ứng cho nút
+     */
+    public void createButton(){
+        buttonState = new Button();
+        buttonState.setPrefHeight(40);
+        buttonState.setPrefWidth(BombermanGame.WIDTH * Sprite.SCALED_SIZE);
+        buttonState.setDisable(true);
+        buttonState.setStyle("-fx-font: 16 arial;" + "-fx-focus-color: transparent;" + "-fx-faint-focus-color: transparent;"
+                + "-fx-font-weight: bold;" + "-fx-opacity: 1.0;");
+
+        buttonState.setOnMouseClicked(new EventHandler<MouseEvent>() {
+            @Override
+            public void handle( MouseEvent event ) {
+                try {
+                    buttonState.setDisable(true);
+                    createMap();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
+    /**
+     * Tạo Map cho tương ứng với level
+     * @throws IOException
+     */
     public void createMap() throws IOException {
-        // reset
-        fixedEntities.clear();
+        // Reset lại các phần tử
         entities.clear();
         canvas.setDisable(false);
+        staticEntities.clear();
 
         buttonState.setText("Level " + level);
 
-        // read file
+        // Đọc dữ liệu từ file
         FileReader fileReader = new FileReader("res/levels/Level" + level + ".txt");
         BufferedReader buf = new BufferedReader(fileReader);
-        int rowCount = 0;
-        String line;
-        while ((line = buf.readLine()) != null) {
 
-            for (int i = 0; i < line.length() ; i++) {
-                if (line.charAt(i) == '#') {
-                    fixedEntities.add(new Wall(i , rowCount , Sprite.wall.getFxImage()));
-                } else {
-                    fixedEntities.add(new Grass(i , rowCount , Sprite.grass.getFxImage()));
+        int row = 0;
+        String lineFile;
+        while ((lineFile = buf.readLine()) != null) {
+            // Thêm lớp Entity tĩnh số 1
+            for (int i = 0; i < lineFile.length() ; i++) {
+                if (lineFile.charAt(i) == '#') {
+                    staticEntities.add(new Wall(i , row , Sprite.wall.getFxImage()));
+                }
+                else {
+                    staticEntities.add(new Grass(i , row , Sprite.grass.getFxImage()));
                 }
             }
-            for (int i = 0; i < line.length() ; i++) {
-                switch (line.charAt(i)) {
-                    case '*':
-                        entities.add(new Brick(i , rowCount , Sprite.brick.getFxImage()));
-                        break;
-                    case 'x':
-                        portal = new Portal(i , rowCount , Sprite.portal.getFxImage());
-                        entities.add(new Brick(i , rowCount , Sprite.brick.getFxImage()));
-                        break;
-                    case 'p':
-                        bomberman = new Bomber(i , rowCount , Sprite.player_right.getFxImage());
-                        entities.add(bomberman);
-                        break;
-                    case '1':
-                        entities.add(new Balloon(i , rowCount , Sprite.balloom_left1.getFxImage()));
-                        break;
-//
+            // Thêm lớp Entiry tĩnh số 2
+            for (int i = 0; i < lineFile.length() ; i++) {
+                if(lineFile.charAt(i) == '*'){
+                    entities.add(new Brick(i , row , Sprite.brick.getFxImage()));
                 }
+                else if(lineFile.charAt(i) == 'x'){
+                    portal = new Portal(i , row , Sprite.portal.getFxImage());
+                    entities.add(new Brick(i , row , Sprite.brick.getFxImage()));
+
+                }
+                else if(lineFile.charAt(i) == 'p'){
+                    bomberman = new Bomber(i , row , Sprite.player_right.getFxImage());
+                    entities.add(bomberman);
+
+                }
+                else if(lineFile.charAt(i) == '1'){
+                    entities.add(new Balloon(i , row , Sprite.balloom_left1.getFxImage()));
+                }
+
             }
-            rowCount++;
+            row++;
         }
     }
 
+    /**
+     * Hàm cập nhật đối tượng mỗi second
+     * @throws IOException
+     */
     public void update() throws IOException {
         entities.forEach(Entity::update);
-        Sprite.movingSprite(Sprite.balloom_left1, Sprite.balloom_left2, Sprite.balloom_left3, 1000, 3);
+        Sprite.movingSprite(Sprite.balloom_left1,
+                Sprite.balloom_left2, Sprite.balloom_left3,
+                1000, 3);
+
+        // Thua game
         if (bomberman.isRemoved()) {
-            buttonState.setText("Game Over! Click here to play again");
             buttonState.setDisable(false);
+            buttonState.setText("Game Over! Click here to play again");
+
         }
 
-
-        // update entities
-        for (int i = 0; i < entities.size(); i++) {
-            Entity entity = entities.get(i);
-            entity.update();
-            if (entity.isRemoved()) {
-                entities.remove(i);
-                canvas.setDisable(true);
-            }
-        }
-
-        if (isWinGame()) {
+        if (isWin()) {
             if(level == 5){
                 buttonState.setText("Win Game!");
             }
             else{
+                // Nên Level
                 level++;
                 createMap();
                 canvas.setDisable(true);
@@ -193,11 +208,24 @@ public class BombermanGame extends Application {
 
         }
 
+        // Cập nhật Entity
+        for (int i = 0; i < entities.size(); i++) {
+            Entity entity = entities.get(i);
+            entity.update();
 
-        // update bom
+            // Xóa phần tử
+            if (entity.isRemoved()) {
+                entities.remove(i);
+                canvas.setDisable(true);
+            }
+        }
+
+        // Cập nhật bomb
         if (bomb != null) {
             bomb.update();
         }
+
+        // Cập nhật vụ nổ
         if (!explosions.isEmpty()) {
             for (int i = 0; i < explosions.size(); i++) {
                 Entity entity = explosions.get(i);
@@ -209,59 +237,67 @@ public class BombermanGame extends Application {
         }
     }
 
+    /**
+     * Hiển thị các đối tượng
+     */
     public void render() {
+        // Hiển thị các đối tượng
         gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
-//        stillObjects.forEach(g -> g.render(gc));
-        fixedEntities.forEach(g -> g.render(gc));
+        staticEntities.forEach(g -> g.render(gc));
         portal.render(gc);
-
         entities.forEach(g -> g.render(gc));
 
-
-        // bom
-        if (bomb != null) {
-            bomb.render(gc);
-        }
+        // Hiển thị vụ nổ
         if (!explosions.isEmpty()) {
             explosions.forEach(g -> g.render(gc));
         }
 
+        // Hiện thị boom
+        if (bomb != null) {
+            bomb.render(gc);
+        }
     }
 
-    private boolean isWinGame() {
-        // extirpated full enemy && found portal
+    /**
+     * Kiểm tra điều kiện chiến thắng
+     * @return true - nếu thắng, false - nếu thua
+     */
+    private boolean isWin() {
         for (Entity entity : entities) {
-            if (entity instanceof Enermy) {
+            if (entity instanceof Enemy) {
                 return false;
             }
         }
         return (bomberman.getX() == portal.getX() && bomberman.getY() == portal.getY());
     }
 
-
+    /**
+     * Tạo các Event cho game
+     * @return KeyEvent
+     */
     public EventHandler<KeyEvent> createEventGame() {
         return new EventHandler<KeyEvent>() {
             public void handle(KeyEvent e) {
                 // Điều chỉnh các hướng
                 if(e.getCode() == KeyCode.LEFT ){
-                    bomberman.setDirection(Entity.Direction.LEFT);
+                    bomberman.setDir(Entity.Dir.LEFT);
                 }
                 else if (e.getCode() == KeyCode.RIGHT){
-                    bomberman.setDirection(Entity.Direction.RIGHT);
+                    bomberman.setDir(Entity.Dir.RIGHT);
 
                 }
                 else if(e.getCode() == KeyCode.DOWN){
-                    bomberman.setDirection(Entity.Direction.DOWN);
+                    bomberman.setDir(Entity.Dir.DOWN);
 
                 }
                 else if (e.getCode() == KeyCode.UP){
-                    bomberman.setDirection(Entity.Direction.UP);
+                    bomberman.setDir(Entity.Dir.UP);
 
                 }
 
                 // Đặt boom
-                if (e.getCode() == KeyCode.SPACE && bomb == null) { //  && bomberman.isAlive()
-                    bomb = new Bom(bomberman.getX() / Sprite.SCALED_SIZE ,
+                if (e.getCode() == KeyCode.SPACE && bomb == null) {
+                    bomb = new Bomb(bomberman.getX() / Sprite.SCALED_SIZE ,
                             bomberman.getY() / Sprite.SCALED_SIZE ,
                             Sprite.bomb.getFxImage());
 
@@ -272,27 +308,49 @@ public class BombermanGame extends Application {
         };
     }
 
+    /**
+     * Lấy ra đối tượng tương ứng với tọa độ
+     * @param x
+     * @param y
+     * @return Đối tượng
+     */
     public static Entity getEntity( int x , int y ) {
-        for (Entity e : entities) {
-            if (e.compareCoordinate(x , y)) return e;
+        for (Entity entity : entities) {
+            if (entity.compareLocation(x , y))
+                return entity;
         }
         if (bomb != null) {
-            if (bomb.compareCoordinate(x , y)) return bomb;
+            if (bomb.compareLocation(x , y))
+                return bomb;
         }
-        for (Entity e : fixedEntities) {
-            if (e.compareCoordinate(x , y)) return e;
+        for (Entity entity : staticEntities) {
+            if (entity.compareLocation(x , y))
+                return entity;
         }
         return null;
     }
 
-    public static void bombExplode( List<Entity> exs ) {
+    /**
+     * Thêm các đối tượng vụ lổ
+     * @param explos vụ nổ thêm vào
+     */
+    public static void explosiveBomb(List<Entity> explos ) {
+        explosions = explos;
         bomb = null;
-        explosions = exs;
+
     }
 
+    /**
+     * Lấy ra đối tượng là quan địch
+     * @param x
+     * @param y
+     * @return
+     */
     public static Entity getEnemy( int x , int y ) {
-        for (Entity e : entities) {
-            if (e.compareCoordinate(x , y) && !(e instanceof Bomber)) return e;
+        for (Entity entity : entities) {
+            if (entity.compareLocation(x , y)
+                    && !(entity instanceof Bomber))
+                return entity;
         }
         return null;
     }
